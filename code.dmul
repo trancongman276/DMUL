@@ -1,0 +1,18 @@
+PRINT "How many fibonacci numbers do you want?"
+# INPUT nums
+PRINT ""
+LET nums = 8
+LET a = 0
+LET b = 1
+IF nums > 0 THEN
+    PRINT a
+    LET c = a + b
+    LET a = b
+    LET b = c
+    LET nums = nums - 1
+ENDIF
+
+# 1. Grammar: else
+# 2. Type: func, const, (array), default func
+# 3. Type check
+# 4. To C code
