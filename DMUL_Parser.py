@@ -1,15 +1,21 @@
+from mytoken import Token
 import sys
 from tokentype import TokenType
 
-
 class Parser:
-    def __init__(self, lexer):
+    def __init__(self, lexer, writter):
+        self.writter = writter
         self.lexer = lexer
         self.curToken = None
         self.nextToken = None
         self.idList = set()
         self.labelList = set()
         self.visitedLabel = set()
+
+        self.logger = ""
+        self.bCounter = 0
+        self.line = 1
+        self.tab = 0
 
         self.next()
         self.next()
@@ -20,7 +26,7 @@ class Parser:
 
     def match(self, kind):
         if not self.checkToken(kind):
-            self._panik(f"Expected {kind}, got {self.curToken.kind}")
+            self._panik(f"Expected {kind}, got {self.curToken.kind} at line {self.line}")
         self.next()
 
     def checkToken(self, kind):
@@ -31,151 +37,190 @@ class Parser:
 
     # Program ::= {Statement}
     def program(self):
-        print("PROGRAM")
+        self.logger += "PROGRAM\n"
         while not self.checkToken(TokenType.EOF):
             self.statement()
         for label in self.visitedLabel:
             if label not in self.labelList:
                 self._panik(f"Confused label {label}")
+        self.writter.write_file()
+        self.makeLog()
 
     def statement(self):
         # Statement ::= "PRINT" (expression | String) nl
         if self.checkToken(TokenType.PRINT):
-            print("STATEMENT-PRINT")
+            self.logger += "STATEMENT-PRINT\n"
             self.next()
             if self.checkToken(TokenType.STRING):
+                self.writter.put_line(f"print(\"{self.curToken.value}\")")
                 self.next()
             else:
+                self.writter.put_code("print(")
                 self.expr()
+                self.writter.put_code(")\n")
 
-        # "IF" cond "THEN" nl {statement} ("ENDIF" nl | "ELSE" nl {statement} "ENDIF" nl)
+        # "IF" cond "THEN" nl {statement} ("EF" nl | "ELSE" nl {statement} "EF" nl)
         elif self.checkToken(TokenType.IF):
-            print("STATEMENT-IF")
+            self.logger += "STATEMENT-IF\n"
+            self.writter.put_code("if ")
+            self.tab += 1
             self.next()
             self.cond()
             self.match(TokenType.THEN)
+            self.writter.put_code(" :")
             self.nl()
-
-            while not (self.checkToken(TokenType.ENDIF) or self.checkToken(TokenType.ELSE)):
+            while not (self.checkToken(TokenType.EF) or self.checkToken(TokenType.ELSE)):
+                self.writter.put_code("\t"*self.tab)
                 self.statement()
 
             if self.checkToken(TokenType.ELSE):
+                self.writter.put_code("else:")
                 self.next()
                 self.nl()
-                while not self.checkToken(TokenType.ENDIF):
+                while not self.checkToken(TokenType.EF):
+                    self.writter.put_code("\t"*self.tab)
                     self.statement()
 
-            self.match(TokenType.ENDIF)
+            self.match(TokenType.EF)
+            self.tab -= 1
 
         # "WHILE" cond "DO" {statement} "ENDWHILE" nl
         elif self.checkToken(TokenType.WHILE):
-            print("STATEMENT-WHILE")
+            self.logger += "STATEMENT-WHILE\n"
             self.next()
             self.cond()
             self.match(TokenType.DO)
             self.nl()
-            while not self.checkToken(TokenType.ENDWHILE):
+            while not self.checkToken(TokenType.EW):
                 self.statement()
-            self.match(TokenType.ENDWHILE)
+            self.match(TokenType.EW)
+
+        # "FOR" id "=" expr "," cond "," expr "ENDFOR"
 
         # "LABEL" id nl
         elif self.checkToken(TokenType.LABEL):
-            print("STATEMENT-LABEL")
+            self.logger += "STATEMENT-LABEL\n"
             self.next()
             # Check if the current label is existing in labelList or not
             if self.curToken.value in self.labelList:
-                self._panik(f"Duplicated label: {self.curToken.value}")
+                self._panik(f"Duplicated label at line {self.line}: {self.curToken.value}")
             self.labelList.add(self.curToken.value)
             self.match(TokenType.ID)
 
         # "GOTO" id nl
         elif self.checkToken(TokenType.GOTO):
-            print("STATEMENT-GOTO")
+            self.logger += "STATEMENT-GOTO\n"
             self.next()
             # Add visited label for later check
             self.visitedLabel.add(self.curToken.value)
             self.match(TokenType.ID)
 
-        # "LET" id "=" expression nl
+
+        # "LET" id (("=" | "+=" | "-=") expr)  nl
         elif self.checkToken(TokenType.LET):
-            print("STATEMENT-LET")
+            self.logger += "STATEMENT-LET\n"
+            tempId = None
             self.next()
             # Add id if it hasn't existed
             if self.curToken.value not in self.idList:
-                self.idList.add(self.curToken.value)
+                # Check if using the current id 
+                if self.checkcurios(TokenType.PEQ) or self.checkcurios(TokenType.MEQ): 
+                    self._panik(f"Undeclared parameter at line {self.line}: ({self.curToken.value})")
+                # Set for later declaration
+                tempId = self.curToken.value
+            self.writter.put_code(self.curToken.value)
             self.match(TokenType.ID)
-            self.match(TokenType.EQ)
+            self.writter.put_code(self.curToken.value)
+            if self.checkToken(TokenType.PEQ) or self.checkToken(TokenType.MEQ):
+                self.next()
+            else:
+                self.match(TokenType.EQ)
             self.expr()
+
+            if tempId is not None:
+                self.idList.add(tempId)
+
 
         # "INPUT" id nl
         elif self.checkToken(TokenType.INPUT):
-            print("STATEMENT-INPUT")
+            self.logger += "STATEMENT-INPUT\n"
+            self.next()
+            self.writter.put_code(f"{self.nextToken.value} = float(input())")
             self.next()
             # check if parameter is declared
             if self.curToken.value not in self.idList:
-                self._panik(f"Undeclared parameter: {self.curToken.value}")
+                self.idList.add(self.curToken.value)
             self.match(TokenType.ID)
 
         else:
-            self._panik(f"??? Statement at {self.curToken.value} ({self.curToken.kind.name})")
+            self._panik(f"??? Statement at line {self.line}:  {self.curToken.value} ({self.curToken.kind.name})")
 
         self.nl()
 
-    # condition ::= expr ("==" | "!=" | ">" | ">=" | "<" | "<=") expr +
+    # condition ::= expr ("==" | "!=" | ">" | ">=" | "<" | "<=") expr 
     def cond(self):
-        print("CONDITIONAL")
+        self.logger += "CONDITIONAL\n"
         self.expr()
         if self.iscomparition():
+            self.writter.put_code(self.curToken.value)
             self.next()
             self.expr()
         else:
-            self._panik(f"Expected comparison operation at {self.curToken.value}")
+            self._panik(f"Expected comparison operation at line {self.line}: {self.curToken.value}")
         while self.iscomparition():
+            self.writter.put_code(self.curToken.value)
             self.next()
             self.expr()
 
-    # expr ::= term | ( "-" | "+" ) term
+    # expr ::= term ( "-" | "+" ) term | term
     def expr(self):
-        print("EXPRESSION")
+        self.logger += "EXPRESSION\n"
+        if self.checkToken(TokenType.CBRACKET):
+            self._panik("Unexpected ')'")
+        self.checkBracket()
         self.term()
+        self.checkBracket()
         while self.checkToken(TokenType.PLUS) or \
                 self.checkToken(TokenType.MINUS):
+            self.writter.put_code(self.curToken.value)
             self.next()
+            self.checkBracket()
             self.term()
 
-    # term ::= unary | ( "/" | "*" ) unary
+    # term ::= primary | primary ( "/" | "*" ) primary
     def term(self):
-        print("TERM")
-        self.unary()
+        self.logger += "TERM\n"
+        self.primary()
+        self.checkBracket()
         while self.checkToken(TokenType.SLASH) or \
                 self.checkToken(TokenType.STAR):
+            self.writter.put_code(self.curToken.value)
             self.next()
-            self.unary()
-
-    # UNARY ::= ( "+" | "-" ) primary
-    def unary(self):
-        print("UNARY")
-        if self.checkToken(TokenType.PLUS) or \
-                self.checkToken(TokenType.MINUS):
-            self.next()
-        self.primary()
+            self.checkBracket()
+            self.primary()
+            self.checkBracket()
 
     # PRIMARY ::= number | id
     def primary(self):
-        print(f"PRIMARY ({self.curToken.value})")
+        self.logger += f"PRIMARY ({self.curToken.value})\n"
+        self.writter.put_code(self.curToken.value)
         if self.checkToken(TokenType.NUMBER):
             self.next()
         elif self.checkToken(TokenType.ID):
             # check if parameter is declared
             if self.curToken.value not in self.idList:
-                self._panik(f"Undeclared parameter: {self.curToken.value}")
+                self._panik(f"Undeclared parameter at line {self.line}: {self.curToken.value}")
             self.next()
         else:
-            self._panik(f"Expected a number or an identity at {self.curToken.value}")
+            self._panik(f"Expected a number or an identity at line {self.line}: {self.curToken.value}")
 
     # nl ::= '\n' +
     def nl(self):
-        print("NEWLINE")
+        if not (self.checkcurios(TokenType.EF) or\
+                self.checkcurios(TokenType.EOF)):
+            self.line += 1
+            self.logger += "NEWLINE\n"
+            self.writter.put_line("")
         self.match(TokenType.NEWLINE)
         while self.checkToken(TokenType.NEWLINE):
             self.next()
@@ -188,5 +233,25 @@ class Parser:
                self.checkToken(TokenType.LEQ) or \
                self.checkToken(TokenType.NOTEQ)
 
+    def checkBracket(self):
+        while self.checkToken(TokenType.OBRACKET):
+            self.writter.put_code('(')
+            self.bCounter += 1
+            self.next()
+        while self.checkToken(TokenType.CBRACKET):
+            self.writter.put_code(')')
+            self.bCounter -= 1
+            self.next()
+
     def _panik(self, msg):
+        print(self.logger)
+        print(self.idList)
         sys.exit(f"ABORT ABORT!\n PARSER paniked! {msg}")
+
+    def makeLog(self):
+        self.lexer.makeLog()
+        with open('temp/.parser','w+') as f:
+            f.write(self.logger)
+        with open('temp/symbol_table','w+') as f:
+            for id in self.idList:
+                f.write(id)

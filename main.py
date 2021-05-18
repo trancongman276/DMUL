@@ -1,11 +1,13 @@
+from DMUL_Writer import Writer
 from DMUL_Lexer import Lexer
 from DMUL_Parser import Parser
 
-with open('code.dmul', 'r') as file:
-    print("DMUL compiler is running...")
 
+with open('test.dmul', 'r') as file:
+    print("DMUL compiler is running...")
     code = file.read()
-    parser = Parser(Lexer(code))
+    writer = Writer('out.py')
+    parser = Parser(Lexer(code), writer)
     parser.program()
 
     print("Finished!")

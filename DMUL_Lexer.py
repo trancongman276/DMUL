@@ -9,6 +9,7 @@ class Lexer:
         self.src = src + '\n'
         self.curPos = -1
         self.curChar = ''
+        self.logger = ''
         self.next()
 
     def next(self):
@@ -38,37 +39,58 @@ class Lexer:
         self.skipnonsense()
         # Operator
         if self.curChar == '+':
-            token = Token(self.curChar, TokenType.PLUS)
+            if self.curious() == '=':
+                self.next()
+                token = Token('+=', TokenType.PEQ)
+            else:
+                token = Token(self.curChar, TokenType.PLUS)
+
         elif self.curChar == '-':
-            token = Token(self.curChar, TokenType.MINUS)
+            if self.curious() == '=':
+                self.next()
+                token = Token('-=', TokenType.MEQ)
+            else:
+                token = Token(self.curChar, TokenType.MINUS)
+
         elif self.curChar == '*':
             token = Token(self.curChar, TokenType.STAR)
+
         elif self.curChar == '/':
             token = Token(self.curChar, TokenType.SLASH)
+
         elif self.curChar == '=':
             if self.curious() == '=':
                 self.next()
                 token = Token('==', TokenType.EQEQ)
             else:
                 token = Token(self.curChar, TokenType.EQ)
+
         elif self.curChar == '>':
             if self.curious() == '=':
                 self.next()
                 token = Token('>=', TokenType.GEQ)
             else:
                 token = Token(self.curChar, TokenType.GT)
+
         elif self.curChar == '<':
             if self.curious() == '=':
                 self.next()
                 token = Token('<=', TokenType.LEQ)
             else:
                 token = Token(self.curChar, TokenType.LT)
+
         elif self.curChar == '!':
             if self.curious() == '=':
                 self.next()
                 token = Token('!=', TokenType.NOTEQ)
             else:
                 self._panik(f"Weird token: '{self.curChar}'")
+        
+        elif self.curChar == '(':
+            token = Token('(', TokenType.OBRACKET)
+        
+        elif self.curChar == ')':
+            token = Token(')', TokenType.CBRACKET)
 
         # Types and Keyword
         elif self.curChar == '\"':
@@ -77,6 +99,7 @@ class Lexer:
             while self.curChar != '\"':
                 self.next()
             token = Token(self.src[startPos:self.curPos], TokenType.STRING)
+
         elif self.curChar.isdigit():
             startPos = self.curPos
             while self.curious().isdigit():
@@ -88,6 +111,7 @@ class Lexer:
                 while self.curious().isdigit():
                     self.next()
             token = Token(self.src[startPos:self.curPos+1], TokenType.NUMBER)
+
         elif self.curChar.isalpha():
             startPos = self.curPos
             while self.curious().isalnum():
@@ -101,13 +125,20 @@ class Lexer:
 
         elif self.curChar == '\n':
             token = Token(self.curChar, TokenType.NEWLINE)
+
         elif self.curChar == '\0':
             token = Token('', TokenType.EOF)
+
         else:
             self._panik(f"Weird token: '{self.curChar}'")
 
         self.next()
+        self.logger += token.kind.name + '\t' + token.value + '\n'
         return token
 
     def _panik(self, msg):
         sys.exit(f"ABORT! ABORT!\nLexer paniked: {msg}")
+
+    def makeLog(self):
+        with open('temp/.lexer','w+') as f:
+            f.write(self.logger)

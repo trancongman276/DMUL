@@ -16,10 +16,10 @@ class TokenType(enum.Enum):
     IF = 105
     THEN = 106
     ELSE = 107
-    ENDIF = 108
+    EF = 108
     WHILE = 109
     DO = 110
-    ENDWHILE = 112
+    EW = 112
     GOTO = 113
 
     # OPERATOR
@@ -34,3 +34,7 @@ class TokenType(enum.Enum):
     LEQ = 209  # <=
     LT = 210  # <
     GT = 211  # >
+    PEQ = 212 # +=
+    MEQ = 213 # -=
+    OBRACKET = 214 # (
+    CBRACKET = 215 # )
