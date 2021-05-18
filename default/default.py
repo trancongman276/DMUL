@@ -18,27 +18,40 @@ def sqrt(x):
         rs = (rs+x/rs)/2
     return rs
 
+def factorial(n):
+    if n < 1:
+        return 1
+    else:
+        return n * factorial(n-1)
+
+def convert(degree):
+    pi = 3.141592653589793238462643383279
+    radian = degree*(pi/180)
+    return radian
+
 def sin(x):
-    # rs = 1
-    # if (x>360) x-=360
-    # if (x<0) x+=360
+    sin_approx = 0
+    for n in range(20):
+        coef = (-1) ** n
+        num = x ** (2 * n + 1)
+        denom = factorial(2 * n + 1)
+        sin_approx += ((coef) / (denom)) * (num)
 
-    # if (x==180 || x==0)
-    #     return 0
-
-    # if (x > 270) rs = -1
-    # else if (x > 180){
-    #     x -= 180
-    #     rs = -1
-    # }
-    # elif (x > 90) x = 180 - x
-    pass
+    return sin_approx
 
 def cos(x):
-    pass
+    cos_approx = 0
+    for n in range(20):
+        coef = (-1) ** n
+        num = x ** (2 * n)
+        denom = factorial(2 * n)
+        cos_approx += ((coef) / (denom)) * (num)
+
+    return cos_approx
 
 def tan(x):
-    pass
+    tan = (sin(x)) / (cos(x))
+    return tan
 
 def abs(a):
     return -a if a <0 else a
