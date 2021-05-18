@@ -16,3 +16,34 @@ ENDIF
 # 2. Type: func, const, (array), default func
 # 3. Type check
 # 4. To C code
+
+#SWITCH INCASE 
+PRINT "Welcome back to our compile !"
+# INPUT hours
+LET hours = 10
+SWITCH hour = ?	
+	INCASE ?=5 SO PRINT "Good morning"
+	INCASE 11<?<13 SO PRINT "Good afternoon"
+	INCASE 14<=?<=17 SO PRINT "Good evening"
+	INCASE ?=22 SO PRINT "Good night"
+	OTHERCASE SO PRINT "Goodbye"   
+ENDSWITCH
+
+#FOR 
+LET a = 0
+FOR start i = 0, within i<10, execute i + 1 
+	DO
+	LET a = a + 1 	
+	ENDDO
+#WHILE
+WHILE condition 
+	DO 
+	LET a = a + 1 	
+	ENDDO 
+
+#LOOP - UNTIL (work as opposite DO - WHILE)
+LOOP 
+	LET a = a + 1 
+UNTIL a = 10
+ENDLOOP
+
