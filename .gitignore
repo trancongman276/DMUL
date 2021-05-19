@@ -142,3 +142,5 @@ cython_debug/
 #vscode cache
 .vscode/
 temp/
+out.py
+test.dmul

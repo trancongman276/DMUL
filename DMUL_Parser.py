@@ -363,7 +363,7 @@ class Parser:
                 self.checkcurios(TokenType.EW)):
             self.line += 1
             self.logger += "NEWLINE\n"
-            if put_line: self.writter.put_line("")
+            if put_line: self.writter.put_code("\n")
         self.match(TokenType.NEWLINE)
         while self.checkToken(TokenType.NEWLINE):
             self.line += 1

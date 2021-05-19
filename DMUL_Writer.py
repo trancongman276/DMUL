@@ -11,9 +11,6 @@ class Writer:
     def put_code(self, code):
         self.code += code
 
-    def put_line(self, code):
-        self.code += code + '\n'
-
     def put_temp(self, code):
         self.temp += code
 
