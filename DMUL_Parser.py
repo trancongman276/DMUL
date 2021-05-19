@@ -8,7 +8,7 @@ class Parser:
         self.lexer = lexer
         self.curToken = None
         self.nextToken = None
-        self.idList = set()
+        self.idList = {}
         self.labelList = set()
         self.visitedLabel = set()
 
@@ -16,6 +16,7 @@ class Parser:
         self.bCounter = 0
         self.line = 1
         self.tab = 0
+        self.scope = 0
 
         self.next()
         self.next()
@@ -52,12 +53,12 @@ class Parser:
             self.logger += "STATEMENT-PRINT\n"
             self.next()
             if self.checkToken(TokenType.STRING):
-                self.writter.put_line(f"print(\"{self.curToken.value}\")")
+                self.writter.put_code(f"print(\"{self.curToken.value}\")")
                 self.next()
             else:
                 self.writter.put_code("print(")
                 self.expr()
-                self.writter.put_code(")\n")
+                self.writter.put_code(")")
 
         # "IF" cond "THEN" nl {statement} ("EF" nl | "ELSE" nl {statement} "EF" nl)
         elif self.checkToken(TokenType.IF):
@@ -69,33 +70,133 @@ class Parser:
             self.match(TokenType.THEN)
             self.writter.put_code(" :")
             self.nl()
+            self.scope += 1
             while not (self.checkToken(TokenType.EF) or self.checkToken(TokenType.ELSE)):
                 self.writter.put_code("\t"*self.tab)
                 self.statement()
-
+            self.removeId()
             if self.checkToken(TokenType.ELSE):
                 self.writter.put_code("else:")
                 self.next()
                 self.nl()
+                self.scope += 1
                 while not self.checkToken(TokenType.EF):
                     self.writter.put_code("\t"*self.tab)
                     self.statement()
-
+                self.removeId()
             self.match(TokenType.EF)
             self.tab -= 1
 
-        # "WHILE" cond "DO" {statement} "ENDWHILE" nl
+        # "WHILE" cond "DO" {statement} "EW" nl
         elif self.checkToken(TokenType.WHILE):
             self.logger += "STATEMENT-WHILE\n"
+            self.writter.put_code("while ")
             self.next()
             self.cond()
             self.match(TokenType.DO)
+            self.writter.put_code(":")
             self.nl()
+            self.scope += 1
+            self.tab += 1
             while not self.checkToken(TokenType.EW):
+                self.writter.put_code("\t"*self.tab)
                 self.statement()
+            self.removeId()
             self.match(TokenType.EW)
+            self.tab -= 1
 
-        # "FOR" id "=" expr "," cond "," expr "ENDFOR"
+        # "FOR" "START" id "=" number "WITHIN" cond "EXEC" id + expr nl {statement} "EFO"
+        elif self.checkToken(TokenType.FOR):
+            self.logger += "STATEMENT-FOR\n"
+            temp_id = None
+            init = False
+            self.next()
+            self.match(TokenType.START)
+            if self.curToken.value not in self.idList:
+                self.idList[self.curToken.value] = self.scope
+                temp_id = self.curToken.value
+                self.writter.put_code(f"{temp_id}")
+                init = True
+            else: self.writter.put_code(self.curToken.value)
+            self.next()
+            self.match(TokenType.EQ)
+            self.writter.put_code("=")
+            self.expr()
+            self.writter.put_code("\nwhile ")
+            self.match(TokenType.WITHIN)
+            self.cond()
+            self.writter.put_code(":")
+            self.match(TokenType.EXEC)
+            self.expr(put_code=False)
+            self.nl()
+            self.tab += 1
+            self.scope += 1
+            while not self.checkToken(TokenType.EFO):
+                self.writter.put_code("\t"*self.tab)
+                self.statement()
+            self.writter.put_code("\t"*self.tab + f"{temp_id}=")
+            self.writter.pop_temp()
+            self.removeId()
+            self.match(TokenType.EFO)
+            self.tab -= 1
+            if init: del self.idList[temp_id]
+            
+        # "LOOP" nl {statement} "UNTIL" cond 
+        elif self.checkToken(TokenType.LOOP):
+            self.logger += "STATEMENT-LOOP\n"
+            self.next()
+            self.writter.put_code("while True:")
+            self.tab += 1
+            self.nl()
+            self.scope += 1
+            while not self.checkToken(TokenType.UNTIL):
+                self.writter.put_code("\t"*self.tab)
+                self.statement()
+            self.removeId()
+            self.match(TokenType.UNTIL)
+            self.writter.put_code("\t"*self.tab)
+            self.writter.put_code("if ")
+            self.cond()
+            self.writter.put_code(": break")
+            self.tab -= 1
+
+        # "SWITCH" id nl ("INCASE" cond(?) "SO" nl {statement} "ESO" nl | 
+        #                   "OTHERCASE" "SO" nl {statement} "ESO" nl "ESW")
+        elif self.checkToken(TokenType.SWITCH):
+            self.logger += "STATEMENT-SWITCH\n"
+            self.next()
+            id = self.curToken.value
+            if self.curToken.value not in self.idList:
+                self._panik(f"Undeclared parameter at line {self.line}: {self.curToken.value}")
+            self.match(TokenType.ID)
+            self.nl(put_line=False)
+            first_if = True
+            while self.checkToken(TokenType.INCASE) or \
+                    self.checkToken(TokenType.OTHERCASE):
+                if not self.checkToken(TokenType.OTHERCASE):
+                    if first_if: 
+                        self.writter.put_code("if ")
+                        self.tab += 1
+                        first_if = False
+                    else:
+                        self.writter.put_code("\n"+"\t"*(self.tab-1)+"elif ")
+                    self.next()
+                    self.cond(id) # the question mark parameter ?
+                else:
+                    self.writter.put_code("\n"+"\t"*(self.tab-1)+"else")
+                    self.next()
+                self.match(TokenType.SO)
+                self.writter.put_code(":")
+                self.nl()
+                self.scope += 1
+                while not self.checkToken(TokenType.ESO):
+                    self.writter.put_code("\t"*self.tab)
+                    self.statement()
+                self.removeId()
+                self.match(TokenType.ESO)
+                self.nl(put_line=False)
+            self.match(TokenType.ESW)
+            self.tab -= 1
 
         # "LABEL" id nl
         elif self.checkToken(TokenType.LABEL):
@@ -138,7 +239,7 @@ class Parser:
             self.expr()
 
             if tempId is not None:
-                self.idList.add(tempId)
+                self.idList[tempId] = self.scope
 
 
         # "INPUT" id nl
@@ -148,8 +249,8 @@ class Parser:
             self.writter.put_code(f"{self.nextToken.value} = float(input())")
             self.next()
             # check if parameter is declared
-            if self.curToken.value not in self.idList:
-                self.idList.add(self.curToken.value)
+            if self.curToken.value not in self.idList[self.scope]:
+                self.idList[self.curToken.value] = self.scope
             self.match(TokenType.ID)
 
         else:
@@ -158,52 +259,91 @@ class Parser:
         self.nl()
 
     # condition ::= expr ("==" | "!=" | ">" | ">=" | "<" | "<=") expr 
-    def cond(self):
+    def cond(self, id = None):
         self.logger += "CONDITIONAL\n"
-        self.expr()
+        self.checkBracket()
+        if id is not None:
+            check = False # check if the lhs is the "?" or not
+            if self.checkToken(TokenType.QSM):
+                check = True
+                self.writter.put_code(id)
+                self.next()
+            else:
+                self.expr()
+        else:
+            self.expr()
         if self.iscomparition():
             self.writter.put_code(self.curToken.value)
             self.next()
-            self.expr()
+            if id is not None:
+                if check and self.checkToken(TokenType.QSM):
+                    self._panik(f"Unexpected '?' at line: {self.line}")
+                if self.checkToken(TokenType.QSM):
+                    check = True
+                    self.writter.put_code(id)
+                    self.next()
+                else:
+                    self.expr()
+            else:
+                self.expr()
         else:
             self._panik(f"Expected comparison operation at line {self.line}: {self.curToken.value}")
+        self.checkBracket()
         while self.iscomparition():
             self.writter.put_code(self.curToken.value)
             self.next()
-            self.expr()
+            if id is not None:
+                if check and self.checkToken(TokenType.QSM):
+                    self._panik(f"Unexpected '?' at line: {self.line}")
+                if self.checkToken(TokenType.QSM):
+                    check = True
+                    self.writter.put_code(id)
+                    self.next()
+                else:
+                    self.expr()
+            else:
+                self.expr()
+            self.checkBracket()
+
 
     # expr ::= term ( "-" | "+" ) term | term
-    def expr(self):
+    def expr(self, put_code=True):
         self.logger += "EXPRESSION\n"
         if self.checkToken(TokenType.CBRACKET):
             self._panik("Unexpected ')'")
         self.checkBracket()
-        self.term()
+        self.term(put_code)
         self.checkBracket()
         while self.checkToken(TokenType.PLUS) or \
                 self.checkToken(TokenType.MINUS):
-            self.writter.put_code(self.curToken.value)
+            if put_code: 
+                self.writter.put_code(self.curToken.value)
+            else: self.writter.put_temp(self.curToken.value)
             self.next()
             self.checkBracket()
-            self.term()
+            self.term(put_code)
 
     # term ::= primary | primary ( "/" | "*" ) primary
-    def term(self):
+    def term(self, put_code=True):
         self.logger += "TERM\n"
-        self.primary()
+        self.primary(put_code)
         self.checkBracket()
         while self.checkToken(TokenType.SLASH) or \
                 self.checkToken(TokenType.STAR):
-            self.writter.put_code(self.curToken.value)
+            if put_code: 
+                self.writter.put_code(self.curToken.value)
+            else: self.writter.put_temp(self.curToken.value)
             self.next()
             self.checkBracket()
-            self.primary()
+            self.primary(put_code)
             self.checkBracket()
 
     # PRIMARY ::= number | id
-    def primary(self):
+    def primary(self, put_code=True):
         self.logger += f"PRIMARY ({self.curToken.value})\n"
-        self.writter.put_code(self.curToken.value)
+        if put_code: 
+            self.writter.put_code(self.curToken.value)
+        else: self.writter.put_temp(self.curToken.value)
         if self.checkToken(TokenType.NUMBER):
             self.next()
         elif self.checkToken(TokenType.ID):
@@ -215,14 +355,18 @@ class Parser:
             self._panik(f"Expected a number or an identity at line {self.line}: {self.curToken.value}")
 
     # nl ::= '\n' +
-    def nl(self):
+    def nl(self, put_line=True):
         if not (self.checkcurios(TokenType.EF) or\
-                self.checkcurios(TokenType.EOF)):
+                self.checkcurios(TokenType.EOF) or\
+                self.checkcurios(TokenType.ESW) or\
+                self.checkcurios(TokenType.ESO) or\
+                self.checkcurios(TokenType.EW)):
             self.line += 1
             self.logger += "NEWLINE\n"
-            self.writter.put_line("")
+            if put_line: self.writter.put_line("")
         self.match(TokenType.NEWLINE)
         while self.checkToken(TokenType.NEWLINE):
+            self.line += 1
             self.next()
 
     def iscomparition(self):
@@ -242,6 +386,14 @@ class Parser:
             self.writter.put_code(')')
             self.bCounter -= 1
             self.next()
+
+    def removeId(self):
+        idL = list(self.idList.keys())
+        for i in range(len(idL)-1,0,-1):
+            if self.idList[idL[i]] == self.scope:
+                del self.idList[idL[i]]
+            else: break
+        self.scope -= 1
 
     def _panik(self, msg):
         print(self.logger)

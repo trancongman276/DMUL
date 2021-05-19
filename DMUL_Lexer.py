@@ -91,6 +91,9 @@ class Lexer:
         
         elif self.curChar == ')':
             token = Token(')', TokenType.CBRACKET)
+        
+        elif self.curChar == '?':
+            token = Token('?', TokenType.QSM)
 
         # Types and Keyword
         elif self.curChar == '\"':

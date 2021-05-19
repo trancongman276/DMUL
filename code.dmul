@@ -10,7 +10,7 @@ IF nums > 0 THEN
     LET a = b
     LET b = c
     LET nums = nums - 1
-ENDIF
+EF
 
 # 1. Grammar: else
 # 2. Type: func, const, (array), default func
@@ -21,29 +21,37 @@ ENDIF
 PRINT "Welcome back to our compile !"
 # INPUT hours
 LET hours = 10
-SWITCH hour = ?	
-	INCASE ?=5 SO PRINT "Good morning"
-	INCASE 11<?<13 SO PRINT "Good afternoon"
-	INCASE 14<=?<=17 SO PRINT "Good evening"
-	INCASE ?=22 SO PRINT "Good night"
-	OTHERCASE SO PRINT "Goodbye"   
-ENDSWITCH
+SWITCH hours
+	INCASE ?==5 SO 
+		PRINT "Good morning" 
+		ESO
+	INCASE 11<?<13 SO 
+		PRINT "Good afternoon" 
+		ESO
+	INCASE 14<=?<=17 SO 
+		PRINT "Good evening" 
+		ESO
+	INCASE ?==22 SO 
+		PRINT "Good night" 
+		ESO
+	OTHERCASE SO 
+		PRINT "Goodbye" 
+		ESO
+ESW
 
 #FOR 
 LET a = 0
-FOR start i = 0, within i<10, execute i + 1 
-	DO
+FOR START i = 0 WITHIN i<10 EXEC i + 1 
 	LET a = a + 1 	
-	ENDDO
+EFO
+
 #WHILE
-WHILE condition 
-	DO 
+WHILE condition DO 
 	LET a = a + 1 	
-	ENDDO 
+EW 
 
 #LOOP - UNTIL (work as opposite DO - WHILE)
 LOOP 
 	LET a = a + 1 
-UNTIL a = 10
-ENDLOOP
+UNTIL a == 10
 

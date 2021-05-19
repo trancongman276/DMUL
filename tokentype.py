@@ -21,6 +21,19 @@ class TokenType(enum.Enum):
     DO = 110
     EW = 112
     GOTO = 113
+    SWITCH = 114
+    INCASE = 115
+    OTHERCASE = 116
+    SO = 117
+    ESO = 118
+    ESW = 119
+    FOR = 120
+    START = 121
+    WITHIN = 122
+    EXEC = 123
+    EFO = 124
+    LOOP = 125
+    UNTIL = 126
 
     # OPERATOR
     EQ = 201  # =
@@ -38,3 +51,4 @@ class TokenType(enum.Enum):
     MEQ = 213 # -=
     OBRACKET = 214 # (
     CBRACKET = 215 # )
+    QSM = 216 # ?

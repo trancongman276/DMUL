@@ -5,6 +5,7 @@ class Writer:
         self.lib = "from default import default\n"
         self.func = ""
         self.code = ""
+        self.temp = ""
         self.path = path
     
     def put_code(self, code):
@@ -12,6 +13,13 @@ class Writer:
 
     def put_line(self, code):
         self.code += code + '\n'
+
+    def put_temp(self, code):
+        self.temp += code
+
+    def pop_temp(self):
+        self.code += self.temp
+        self.temp = ""
 
     def put_func_code(self, code):
         self.func += code
