@@ -9,31 +9,32 @@ class TokenType(enum.Enum):
     STRING = 3
 
     # keyword
-    LABEL = 101
-    PRINT = 102
-    INPUT = 103
-    LET = 104
-    IF = 105
-    THEN = 106
-    ELSE = 107
-    EF = 108
-    WHILE = 109
-    DO = 110
-    EW = 112
-    GOTO = 113
-    SWITCH = 114
-    INCASE = 115
-    OTHERCASE = 116
-    SO = 117
-    ESO = 118
-    ESW = 119
-    FOR = 120
-    START = 121
-    WITHIN = 122
-    EXEC = 123
-    EFO = 124
-    LOOP = 125
-    UNTIL = 126
+    FUNC = 101
+    EFU = 102
+    PRINT = 103
+    INPUT = 104
+    LET = 105
+    IF = 106
+    THEN = 107
+    ELSE = 108
+    EIF = 109
+    WHILE = 110
+    DO = 111
+    EWH = 112
+    SWITCH = 113
+    INCASE = 114
+    OTHERCASE = 115
+    SO = 116
+    ESO = 117
+    ESW = 118
+    FOR = 119
+    START = 120
+    WITHIN = 121
+    EXEC = 122
+    EFO = 123
+    LOOP = 124
+    UNTIL = 125
+    CONST = 126
 
     # OPERATOR
     EQ = 201  # =
@@ -52,3 +53,4 @@ class TokenType(enum.Enum):
     OBRACKET = 214 # (
     CBRACKET = 215 # )
     QSM = 216 # ?
+    SEPARATOR = 217 # ,

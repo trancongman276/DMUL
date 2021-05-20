@@ -96,6 +96,9 @@ class Lexer:
         elif self.curChar == '?':
             token = Token('?', TokenType.QSM)
 
+        elif self.curChar == ',':
+            token = Token(',', TokenType.SEPARATOR)
+
         # Types and Keyword
         elif self.curChar == '\"':
             self.next()

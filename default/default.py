@@ -1,18 +1,17 @@
-def PI():
-    return 3.141592653589793238462643383279
+PI = 3.141592653589793238462643383279
+E = 2.718282
 
-def E():
-    return 2.718282
-
-def power(x, y):
+def POWER(x, y: int):
+    if x == 0:
+        return 0
     if y == 0:
         return 1
-    temp = power(x, y/2)
+    temp = POWER(x, int(y/2))
     if y%2 == 0:
         return temp*temp
     return x*temp*temp
 
-def sqrt(x):
+def SQRT(x):
     # ref: https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method
     temp = 0
     rs = (x+1)/2
@@ -21,32 +20,32 @@ def sqrt(x):
         rs = (rs+x/rs)/2
     return rs
 
-def factorial(n):
-    return 1 if n < 1 else n * factorial(n-1)
+def FACTORIAL(n):
+    return 1 if n < 1 else n * FACTORIAL(n-1)
 
-def degree2pi(degree):
-    return degree*(PI()/180)
+def DEGREE2PI(degree):
+    return degree*(PI/180)
 
-def sin(x):
+def SIN(x):
     sin_approx = 0
     for n in range(20):
-        coef = power(-1, n)
-        num = power(x, 2 * n + 1)
-        denom = factorial(2 * n + 1)
+        coef = POWER(-1, n)
+        num = POWER(x, 2 * n + 1)
+        denom = FACTORIAL(2 * n + 1)
         sin_approx += (coef / denom) * num
     return sin_approx
 
-def cos(x):
+def COS(x):
     cos_approx = 0
     for n in range(20):
-        coef = power(-1, n)
-        num = power(x, 2 * n)
-        denom = factorial(2 * n)
+        coef = POWER(-1, n)
+        num = POWER(x, 2 * n)
+        denom = FACTORIAL(2 * n)
         cos_approx += (coef / denom) * num
     return cos_approx
 
-def tan(x):
-    return sin(x) / cos(x)
+def TAN(x):
+    return SIN(x) / COS(x)
 
-def abs(a):
+def ABS(a):
     return -a if a <0 else a
