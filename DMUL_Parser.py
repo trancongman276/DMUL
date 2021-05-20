@@ -14,7 +14,6 @@ class Parser:
 
         self.logger = ""
         self.bCounter = 0
-        self.line = 1
         self.tab = 0
         self.scope = 0
 
@@ -27,7 +26,7 @@ class Parser:
 
     def match(self, kind):
         if not self.checkToken(kind):
-            self._panik(f"Expected {kind}, got {self.curToken.kind} at line {self.line}")
+            self._panik(f"Expected {kind}, got {self.curToken.kind} at line {self.lexer.get_line()}")
         self.next()
 
     def checkToken(self, kind):
@@ -167,7 +166,7 @@ class Parser:
             self.next()
             id = self.curToken.value
             if self.curToken.value not in self.idList:
-                self._panik(f"Undeclared parameter at line {self.line}: {self.curToken.value}")
+                self._panik(f"Undeclared parameter at line {self.lexer.get_line()}: {self.curToken.value}")
             self.match(TokenType.ID)
             self.nl(put_line=False)
             first_if = True
@@ -204,7 +203,7 @@ class Parser:
             self.next()
             # Check if the current label is existing in labelList or not
             if self.curToken.value in self.labelList:
-                self._panik(f"Duplicated label at line {self.line}: {self.curToken.value}")
+                self._panik(f"Duplicated label at line {self.lexer.get_line()}: {self.curToken.value}")
             self.labelList.add(self.curToken.value)
             self.match(TokenType.ID)
 
@@ -226,7 +225,7 @@ class Parser:
             if self.curToken.value not in self.idList:
                 # Check if using the current id 
                 if self.checkcurios(TokenType.PEQ) or self.checkcurios(TokenType.MEQ): 
-                    self._panik(f"Undeclared parameter at line {self.line}: ({self.curToken.value})")
+                    self._panik(f"Undeclared parameter at line {self.lexer.get_line()}: ({self.curToken.value})")
                 # Set for later declaration
                 tempId = self.curToken.value
             self.writter.put_code(self.curToken.value)
@@ -246,15 +245,14 @@ class Parser:
         elif self.checkToken(TokenType.INPUT):
             self.logger += "STATEMENT-INPUT\n"
             self.next()
-            self.writter.put_code(f"{self.nextToken.value} = float(input())")
-            self.next()
+            self.writter.put_code(f"{self.curToken.value} = float(input())")
             # check if parameter is declared
-            if self.curToken.value not in self.idList[self.scope]:
+            if self.curToken.value not in self.idList:
                 self.idList[self.curToken.value] = self.scope
             self.match(TokenType.ID)
 
         else:
-            self._panik(f"??? Statement at line {self.line}:  {self.curToken.value} ({self.curToken.kind.name})")
+            self._panik(f"??? Statement at line {self.lexer.get_line()}:  {self.curToken.value} ({self.curToken.kind.name})")
 
         self.nl()
 
@@ -277,7 +275,7 @@ class Parser:
             self.next()
             if id is not None:
                 if check and self.checkToken(TokenType.QSM):
-                    self._panik(f"Unexpected '?' at line: {self.line}")
+                    self._panik(f"Unexpected '?' at line: {self.lexer.get_line()}")
                 if self.checkToken(TokenType.QSM):
                     check = True
                     self.writter.put_code(id)
@@ -287,14 +285,14 @@ class Parser:
             else:
                 self.expr()
         else:
-            self._panik(f"Expected comparison operation at line {self.line}: {self.curToken.value}")
+            self._panik(f"Expected comparison operation at line {self.lexer.get_line()}: {self.curToken.value}")
         self.checkBracket()
         while self.iscomparition():
             self.writter.put_code(self.curToken.value)
             self.next()
             if id is not None:
                 if check and self.checkToken(TokenType.QSM):
-                    self._panik(f"Unexpected '?' at line: {self.line}")
+                    self._panik(f"Unexpected '?' at line: {self.lexer.get_line()}")
                 if self.checkToken(TokenType.QSM):
                     check = True
                     self.writter.put_code(id)
@@ -349,10 +347,10 @@ class Parser:
         elif self.checkToken(TokenType.ID):
             # check if parameter is declared
             if self.curToken.value not in self.idList:
-                self._panik(f"Undeclared parameter at line {self.line}: {self.curToken.value}")
+                self._panik(f"Undeclared parameter at line {self.lexer.get_line()}: {self.curToken.value}")
             self.next()
         else:
-            self._panik(f"Expected a number or an identity at line {self.line}: {self.curToken.value}")
+            self._panik(f"Expected a number or an identity at line {self.lexer.get_line()}: {self.curToken.value}")
 
     # nl ::= '\n' +
     def nl(self, put_line=True):
@@ -361,12 +359,12 @@ class Parser:
                 self.checkcurios(TokenType.ESW) or\
                 self.checkcurios(TokenType.ESO) or\
                 self.checkcurios(TokenType.EW)):
-            self.line += 1
+            # self.lexer.get_line() += 1
             self.logger += "NEWLINE\n"
             if put_line: self.writter.put_code("\n")
         self.match(TokenType.NEWLINE)
         while self.checkToken(TokenType.NEWLINE):
-            self.line += 1
+            # self.lexer.get_line() += 1
             self.next()
 
     def iscomparition(self):

@@ -10,6 +10,7 @@ class Lexer:
         self.curPos = -1
         self.curChar = ''
         self.logger = ''
+        self.line = 0
         self.next()
 
     def next(self):
@@ -128,6 +129,7 @@ class Lexer:
 
         elif self.curChar == '\n':
             token = Token(self.curChar, TokenType.NEWLINE)
+            self.line += 1
 
         elif self.curChar == '\0':
             token = Token('', TokenType.EOF)
@@ -138,6 +140,9 @@ class Lexer:
         self.next()
         self.logger += token.kind.name + '\t' + token.value + '\n'
         return token
+
+    def get_line(self):
+        return self.line + 1
 
     def _panik(self, msg):
         sys.exit(f"ABORT! ABORT!\nLexer paniked: {msg}")
