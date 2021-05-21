@@ -1,6 +1,6 @@
 import sys
 from tokentype import TokenType
-
+from scope import Inner
 class Parser:
     def __init__(self, lexer, writter):
         self.writter = writter
@@ -8,16 +8,20 @@ class Parser:
         self.curToken = None
         self.nextToken = None
         self.idList = {}
-        self.constId = {'PI':0, 'E':0}
+        self.defaultConst = ['PI','E']
         self.defaultFunc = {'SIN':1,'COS':1,'TAN':1,'POWER':2,'SQRT':1,\
                                 'FACTORIAL':1,'DEGREE2PI':1,'ABS':1}
-        self.funcList = {}
-        self.visitedLabel = set()
+        self.funcList = {} 
+        self.visitedFunc = set()
+        self.visitedStatement = set()
+        self.usedConst = set()
 
         self.logger = ""
         self.bCounter = 0
         self.tab = 0
-        self.scope = 0
+
+        self.curScope = Inner(parentId=[], parentConst=self.defaultConst, name="glob")
+        
         self.inFunc = False
 
         self.next()
@@ -44,17 +48,22 @@ class Parser:
         while not self.checkToken(TokenType.EOF):
             self.statement()
 
-        for func in self.visitedLabel:
-            if func not in self.funcList:
+        for func in self.visitedFunc:
+            if func not in self.funcList and\
+                    func not in self.defaultFunc:
                 print(f"[WARN] Un-touched function {func}")
+        import os
+        if not os.path.exists('temp'):
+            os.makedirs('temp')
         self.writter.write_file()
         self.makeLog()
 
     def statement(self):
-
+        self.visitedStatement.add(self.curToken.value)
         # Statement ::= "PRINT" (expression | String) nl
         if self.checkToken(TokenType.PRINT):
             self.logger += "STATEMENT-PRINT\n"
+            
             self.next()
             if self.checkToken(TokenType.STRING):
                 self.put_code(f"print(\"{self.curToken.value}\")")
@@ -74,21 +83,23 @@ class Parser:
             self.match(TokenType.THEN)
             self.put_code(" :")
             self.nl()
-            self.scope += 1
+            parentScope = self.create_scope()
             while not (self.checkToken(TokenType.EIF) or self.checkToken(TokenType.ELSE)):
                 self.put_code("\t"*self.tab)
                 self.statement()
-            self.removeId()
             if self.checkToken(TokenType.ELSE):
                 self.put_code("else:")
                 self.next()
                 self.nl()
-                self.scope += 1
+                parentScope_else = self.create_scope()
                 while not self.checkToken(TokenType.EIF):
                     self.put_code("\t"*self.tab)
                     self.statement()
-                self.removeId()
+                parentScope_else.inner.append(self.curScope)
+                self.curScope = parentScope_else
             self.match(TokenType.EIF)
+            parentScope.inner.append(self.curScope)
+            self.curScope = parentScope
             self.tab -= 1
 
         # "WHILE" cond "DO" {statement} "EWH" nl
@@ -100,13 +111,14 @@ class Parser:
             self.match(TokenType.DO)
             self.put_code(":")
             self.nl()
-            self.scope += 1
+            parentScope = self.create_scope()
             self.tab += 1
             while not self.checkToken(TokenType.EWH):
                 self.put_code("\t"*self.tab)
                 self.statement()
-            self.removeId()
             self.match(TokenType.EWH)
+            parentScope.inner.append(self.curScope)
+            self.curScope = parentScope
             self.tab -= 1
 
         # "FOR" "START" id "=" number "WITHIN" cond "EXEC" id + expr nl {statement} "EFO"
@@ -114,10 +126,11 @@ class Parser:
             self.logger += "STATEMENT-FOR\n"
             temp_id = None
             init = False
+            parentScope = self.create_scope()
             self.next()
             self.match(TokenType.START)
-            if self.curToken.value not in self.idList:
-                self.idList[self.curToken.value] = self.scope
+            if not self.curScope.checkId(self.curToken.value):
+                self.curScope.idList.append(self.curToken.value)
                 temp_id = self.curToken.value
                 self.put_code(f"{temp_id}")
                 init = True
@@ -134,16 +147,16 @@ class Parser:
             self.expr(put_code=False)
             self.nl()
             self.tab += 1
-            self.scope += 1
             while not self.checkToken(TokenType.EFO):
                 self.put_code("\t"*self.tab)
                 self.statement()
             self.put_code("\t"*self.tab + f"{temp_id}=")
             self.writter.pop_temp()
-            self.removeId()
             self.match(TokenType.EFO)
+            parentScope.inner.append(self.curScope)
+            self.curScope = parentScope
             self.tab -= 1
-            if init: del self.idList[temp_id]
+            # if init: del self.idList[temp_id]
             
         # "LOOP" nl {statement} "UNTIL" cond 
         elif self.checkToken(TokenType.LOOP):
@@ -152,16 +165,17 @@ class Parser:
             self.put_code("while True:")
             self.tab += 1
             self.nl()
-            self.scope += 1
+            parentScope = self.create_scope()
             while not self.checkToken(TokenType.UNTIL):
                 self.put_code("\t"*self.tab)
                 self.statement()
-            self.removeId()
             self.match(TokenType.UNTIL)
             self.put_code("\t"*self.tab)
             self.put_code("if ")
             self.cond()
             self.put_code(": break")
+            parentScope.inner.append(self.curScope)
+            self.curScope = parentScope
             self.tab -= 1
 
         # "SWITCH" id nl ("INCASE" cond(?) "SO" nl {statement} "ESO" nl | 
@@ -170,7 +184,7 @@ class Parser:
             self.logger += "STATEMENT-SWITCH\n"
             self.next()
             id = self.curToken.value
-            if self.curToken.value not in self.idList:
+            if not self.curScope.checkId(self.curToken.value):
                 self._panik(f"Undeclared parameter at line {self.lexer.get_line()}: {self.curToken.value}")
             self.match(TokenType.ID)
             self.nl(put_line=False)
@@ -192,13 +206,14 @@ class Parser:
                 self.match(TokenType.SO)
                 self.put_code(":")
                 self.nl()
-                self.scope += 1
+                parentScope = self.create_scope()
                 while not self.checkToken(TokenType.ESO):
                     self.put_code("\t"*self.tab)
                     self.statement()
-                self.removeId()
                 self.match(TokenType.ESO)
                 self.nl(put_line=False)
+                parentScope.inner.append(self.curScope)
+                self.curScope = parentScope
             self.match(TokenType.ESW)
             self.tab -= 1
 
@@ -206,24 +221,24 @@ class Parser:
         elif self.checkToken(TokenType.FUNC):
             self.logger += "STATEMENT-FUNC\n"
             self.next()
+            parentScope = self.create_scope(name='func')
             self.inFunc = True
             funcName = self.curToken.value
             initList = set()
-            # Check if the current label is existing in labelList or not
+            # Check if the current func is existing in funcList or not
             if funcName in self.funcList:
                 self._panik(f"Duplicated function at line {self.lexer.get_line()}: {funcName}")
             self.funcList[funcName] = 0
             self.put_code(f"def {funcName}(")
             self.match(TokenType.ID)
             self.match(TokenType.OBRACKET)
-            self.scope += 1
 
             while not self.checkToken(TokenType.CBRACKET):
                 if self.curToken.value in initList:
                     self._panik(f"Duplicated variable at line {self.lexer.get_line()}")
                 initList.add(self.curToken.value)
-                if self.curToken.value not in self.idList:
-                    self.idList[self.curToken.value] = self.scope
+                # if not self.curScope.checkId(self.curToken.value):
+                self.curScope.idList.append(self.curToken.value)
                 if self.checkcurios(TokenType.CBRACKET):
                     self.put_code(f"{self.curToken.value}")
                     self.next()
@@ -243,8 +258,10 @@ class Parser:
             self.match(TokenType.EFU)
             self.put_code("\t"*self.tab + "return ")
             self.expr()
-            self.removeId()
+            self.put_code("\n")
             self.inFunc = False
+            parentScope.inner.append(self.curScope)
+            self.curScope = parentScope
             self.tab -= 1
 
         # "LET" id (("=" | "+=" | "-=") expr)  nl
@@ -254,11 +271,11 @@ class Parser:
             self.next()
             
             # Check changing const
-            if self.curToken.value in self.constId:
+            if self.curScope.checkConst(self.curToken.value):
                 self._panik(f"Error at line {self.lexer.get_line()} Cannot change the constant!")
 
             # Add id if it hasn't existed
-            if self.curToken.value not in self.idList:
+            if not self.curScope.checkId(self.curToken.value):
                 # Check if using the current id 
                 if self.checkcurios(TokenType.PEQ) or self.checkcurios(TokenType.MEQ): 
                     self._panik(f"Undeclared parameter at line {self.lexer.get_line()}: ({self.curToken.value})")
@@ -276,16 +293,16 @@ class Parser:
             self.expr()
 
             if tempId is not None:
-                self.idList[tempId] = self.scope
+                self.curScope.idList.append(tempId)
 
         # "CONST" id "=" expr
         elif self.checkToken(TokenType.CONST):
             self.logger += "STATEMENT-CONST\n"
             self.next()
-            if self.curToken.value in self.idList or\
-                self.curToken.value in self.constId:
+            if self.curScope.checkId(self.curToken.value) or\
+                self.curScope.checkConst(self.curToken.value):
                 self._panik(f"Unexpected parameter at line {self.lexer.get_line()}: {self.curToken.value}")
-            self.constId[self.curToken.value] = self.scope
+            self.curScope.constId.append(self.curToken.value)
             self.put_code(f'{self.curToken.value}=')
             self.match(TokenType.ID)
             self.match(TokenType.EQ)
@@ -297,8 +314,8 @@ class Parser:
             self.next()
             self.put_code(f"{self.curToken.value} = float(input())")
             # check if parameter is declared
-            if self.curToken.value not in self.idList:
-                self.idList[self.curToken.value] = self.scope
+            if not self.curScope.checkId(self.curToken.value):
+                self.curScope.idList.append(self.curToken.value)
             self.match(TokenType.ID)
 
         else:
@@ -365,6 +382,7 @@ class Parser:
         # Check using function
         if self.curToken.value in self.funcList or\
                 self.curToken.value in self.defaultFunc:
+            self.visitedFunc.add(self.curToken.value)
             if self.curToken.value in self.defaultFunc:
                 self.put_code(f'default.{self.curToken.value}(')
                 numParams = self.defaultFunc[self.curToken.value]
@@ -388,6 +406,7 @@ class Parser:
             if self.curToken.value in self.funcList or\
                     self.curToken.value in self.defaultFunc:
                 if self.curToken.value in self.defaultFunc:
+                    self.visitedFunc.add(self.curToken.value)
                     self.put_code(f'default.{self.curToken.value}(')
                     numParams = self.defaultFunc[self.curToken.value]
                 else:
@@ -418,18 +437,22 @@ class Parser:
     def primary(self, put_code=True):
         self.logger += f"PRIMARY ({self.curToken.value})\n"
         # Put code in file or temp
-        if put_code: 
-            self.put_code(self.curToken.value)
+        if put_code:
+            if self.curToken.value in self.defaultConst:
+                self.put_code(f"default.{self.curToken.value}")
+                self.usedConst.add(self.curToken.value)
+            else:
+                self.put_code(self.curToken.value)
         else: self.writter.put_temp(self.curToken.value)
         if self.checkToken(TokenType.NUMBER):
             self.next()
         elif self.checkToken(TokenType.ID):
             # check if parameter is declared
-            if self.curToken.value not in self.idList or\
-                    self.curToken.value in self.constId:
+            if not self.curScope.checkId(self.curToken.value) and\
+                    not self.curScope.checkConst(self.curToken.value):
                 self._panik(f"Undeclared parameter at line {self.lexer.get_line()}: {self.curToken.value}")
             self.next()
-        elif self.curToken.value in self.constId:
+        elif self.curScope.checkConst(self.curToken.value):
             self.next()
         else:
             self._panik(f"Expected a number or an identity at line {self.lexer.get_line()}: {self.curToken.value}")
@@ -475,36 +498,42 @@ class Parser:
                 self.match(TokenType.SEPARATOR)
                 self.put_code(',')
 
-    # Remove id in scope
-    def removeId(self):
-        idL = list(self.idList.keys())
-        constLs = list(self.constId.keys())
-        # Remove id
-        for i in range(len(idL)-1,0,-1):
-            if self.idList[idL[i]] == self.scope:
-                del self.idList[idL[i]]
-            else: break
-        # Remove constant
-        for i in range(len(constLs)-1,0,-1): 
-            if self.constId[constLs[i]] == self.scope:
-                del self.constId[constLs[i]]
-            else: break
-        self.scope -= 1
+    def checkId(self, id):
+        return id in self.curScope.checkId(id)
+
+    def check_const(self, id):
+        return id in self.curScope.checkConst(id)
 
     def put_code(self, code):
         self.writter.put_code(code, self.inFunc)
 
+    def create_scope(self, name='inner'):
+        if self.inFunc: name = 'func-' + name
+        parentScope = self.curScope
+        self.curScope = Inner(parentId=self.curScope.idList, parentConst=self.curScope.constId, name=name)
+        return parentScope
+
     # Throw Error
     def _panik(self, msg):
         print(self.logger)
-        print(self.idList)
+        print(self.curScope.idList)
         sys.exit(f"ABORT ABORT!\n PARSER paniked! {msg}")
+
+    def tabulator(self, text, minTab=15):
+        spaces = minTab - len(text)
+        return text if spaces <=0 else text + " "*spaces 
 
     # Build logger
     def makeLog(self):
         self.lexer.makeLog()
         with open('temp/.parser','w+') as f:
             f.write(self.logger)
-        with open('temp/symbol_table','w+') as f:
-            for id in self.idList:
-                f.write(id)
+        with open('temp/.symbol_table','w+') as f:
+            f.write(f"{self.tabulator('ID')}{self.tabulator('Scope')}{self.tabulator('ScopeId')}\n")
+            for func in self.visitedFunc:
+                f.write(f"{self.tabulator(func)}{self.tabulator('glob')}{self.tabulator(str(0))}\n")
+            for func in self.visitedStatement:
+                f.write(f"{self.tabulator(func)}{self.tabulator('glob')}{self.tabulator(str(0))}\n")
+            for const in self.usedConst:
+                f.write(f"{self.tabulator(const)}{self.tabulator('glob-const')}{self.tabulator(str(0))}\n")
+            f.write(self.curScope.buildTable(0, self.tabulator))
