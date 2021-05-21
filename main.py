@@ -1,14 +1,18 @@
-
+from DMUL_Writer import Writer
 from DMUL_Lexer import Lexer
 from DMUL_Parser import Parser
-from symboltable import SymbolTable
+import sys
 
-with open('code.dmul', 'r') as file:
+
+# if len(sys.argv) != 2:
+#     sys.exit("Required source file")    
+with open('test.dmul', 'r') as file:
     print("DMUL compiler is running...")
-
     code = file.read()
-    parser = Parser(Lexer(code))
+    writer = Writer('out.py')
+    parser = Parser(Lexer(code), writer)
     parser.program()
-
     print("Finished!")
-    SymbolTable.printSymbolTable()
+
+from subprocess import call
+call(['python','out.py'])
