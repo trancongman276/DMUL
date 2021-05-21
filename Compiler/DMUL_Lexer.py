@@ -1,6 +1,6 @@
 import sys
-from tokentype import TokenType
-from mytoken import Token
+from Token.tokentype import TokenType
+from Token.mytoken import Token
 
 
 class Lexer:

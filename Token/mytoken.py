@@ -1,4 +1,4 @@
-from tokentype import TokenType
+from Token.tokentype import TokenType
 
 
 class Token:
