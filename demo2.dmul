@@ -2,6 +2,9 @@
 # when knowing the length of 3 lines
 CONST rate = 0.5
 
+FUNC calc()
+	EFU 0
+
 FUNC calcArea(a, b, c)
 	LET p = (a + b + c) * rate 
 	EFU SQRT(p*(p-a)*(p-b)*(p-c)) 

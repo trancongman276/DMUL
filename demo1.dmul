@@ -1,0 +1,13 @@
+# Calculate the volume of a Sphere knowing its radius
+FUNC volume(r)
+    EFU (4/3)*(PI*POWER(r, 3))
+
+LET r = 0
+LOOP
+	PRINT "Please input r: "
+	INPUT r
+	PRINT "The volume of the Sphere is:"
+    PRINT volume(r)
+    PRINT "Do you want to calculate another one? (yes: 0, no: 1)"
+    INPUT choice
+UNTIL choice == 1

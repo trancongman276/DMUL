@@ -144,3 +144,4 @@ cython_debug/
 temp/
 out.py
 test.dmul
+*.rar

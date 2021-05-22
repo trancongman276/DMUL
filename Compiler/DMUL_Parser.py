@@ -54,10 +54,9 @@ class Parser:
         while not self.checkToken(TokenType.EOF):
             self.statement()
         self.tree.putNode(0, self.treeId+1,'EOF')
-        for func in self.visitedFunc:
-            if func not in self.funcList and\
-                    func not in self.defaultFunc:
-                print(f"[WARN] Un-touched function {func}")
+        for func in self.funcList:
+            if func not in self.visitedFunc:
+                print(f"[WARN] Un-touched function \"{func}\"")
         self.writter.write_file()
         self.makeLog()
 
@@ -442,21 +441,7 @@ class Parser:
         self.parentId = self.treeId
         self.checkBracket()
         # Check using function
-        if self.curToken.value in self.funcList or\
-                self.curToken.value in self.defaultFunc:
-            self.visitedFunc.add(self.curToken.value)
-            self.put_node(self.curToken.value)
-            self.put_node('(')
-            if self.curToken.value in self.defaultFunc:
-                self.put_code(f'default.{self.curToken.value}(')
-                numParams = self.defaultFunc[self.curToken.value]
-            else:
-                self.put_code(f'{self.curToken.value}(')
-                numParams = self.funcList[self.curToken.value]
-            self.next()
-            self.checkFunc(numParams)
-        else:
-            self.term(put_code)
+        self.term(put_code)
         self.checkBracket()
         while self.checkToken(TokenType.PLUS) or \
                 self.checkToken(TokenType.MINUS):
@@ -468,19 +453,7 @@ class Parser:
             self.next()
             self.checkBracket()
             # Check using function
-            if self.curToken.value in self.funcList or\
-                    self.curToken.value in self.defaultFunc:
-                if self.curToken.value in self.defaultFunc:
-                    self.visitedFunc.add(self.curToken.value)
-                    self.put_code(f'default.{self.curToken.value}(')
-                    numParams = self.defaultFunc[self.curToken.value]
-                else:
-                    self.put_code(f'{self.curToken.value}(')
-                    numParams = self.funcList[self.curToken.value]
-                self.next()
-                self.checkFunc(numParams)
-            else:
-                self.term(put_code)
+            self.term(put_code)
         self.parentId = lastParent
 
     # term ::= primary | primary ( "/" | "*" ) primary
@@ -495,27 +468,52 @@ class Parser:
                 self.checkToken(TokenType.STAR):
             # Put code in file or temp
             self.put_node(self.curToken.value)
-            if put_code: 
-                self.put_code(self.curToken.value)
-            else: self.writter.put_temp(self.curToken.value)
+            if self.curToken.value in self.funcList or\
+                    self.curToken.value in self.defaultFunc:
+                if self.curToken.value in self.defaultFunc:
+                    self.visitedFunc.add(self.curToken.value)
+                    self.put_code(f'default.{self.curToken.value}(')
+                    numParams = self.defaultFunc[self.curToken.value]
+                else:
+                    self.put_code(f'{self.curToken.value}(')
+                    numParams = self.funcList[self.curToken.value]
+                self.next()
+                self.checkFunc(numParams)
+            else:
+                if put_code: 
+                    self.put_code(self.curToken.value)
+                else: self.writter.put_temp(self.curToken.value)
             self.next()
             self.checkBracket()
             self.primary(put_code)
             self.checkBracket()
         self.parentId = lastParent
 
-    # PRIMARY ::= number | id
+    # PRIMARY ::= number | id | func
     def primary(self, put_code=True):
         self.logger += f"PRIMARY ({self.curToken.value})\n"
-        self.put_node(f"PRIMARY ({self.curToken.value})")
         # Put code in file or temp
         if put_code:
+            if self.curToken.value in self.funcList or\
+                    self.curToken.value in self.defaultFunc:
+                self.put_node(f"{self.curToken.value}")
+                if self.curToken.value in self.defaultFunc:
+                    self.put_code(f'default.{self.curToken.value}(')
+                    numParams = self.defaultFunc[self.curToken.value]
+                else:
+                    self.visitedFunc.add(self.curToken.value)
+                    self.put_code(f'{self.curToken.value}(')
+                    numParams = self.funcList[self.curToken.value]
+                self.next()
+                self.checkFunc(numParams)
+                return
             if self.curToken.value in self.defaultConst:
                 self.put_code(f"default.{self.curToken.value}")
                 self.usedConst.add(self.curToken.value)
             else:
                 self.put_code(self.curToken.value)
         else: self.writter.put_temp(self.curToken.value)
+        self.put_node(f"PRIMARY ({self.curToken.value})")
         if self.checkToken(TokenType.NUMBER):
             self.next()
         elif self.checkToken(TokenType.ID):
