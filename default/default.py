@@ -13,6 +13,8 @@ def POWER(x, y: int):
 
 def SQRT(x):
     # ref: https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method
+    if x < 0:
+        return 0
     temp = 0
     rs = (x+1)/2
     while temp!=rs:
