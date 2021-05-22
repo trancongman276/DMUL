@@ -13,7 +13,7 @@ class Parser:
         self.idList = {}
         self.defaultConst = ['PI','E']
         self.defaultFunc = {'SIN':1,'COS':1,'TAN':1,'POWER':2,'SQRT':1,\
-                                'FACTORIAL':1,'DEGREE2PI':1,'ABS':1}
+                                'FACTORIAL':1,'DEGREE2RAD':1,'ABS':1}
         self.funcList = {} 
         self.visitedFunc = set()
         self.visitedStatement = set()
@@ -64,6 +64,9 @@ class Parser:
     def statement(self):
         self.put_node('STATEMENT')
         self.parentId = self.treeId
+        # Skip head newlines
+        while self.checkToken(TokenType.NEWLINE):
+            self.next()
         self.put_node(self.curToken.value)
 
         self.visitedStatement.add(self.curToken.value)
@@ -100,7 +103,7 @@ class Parser:
             if self.checkToken(TokenType.ELSE):
                 self.parentId = lastParent
                 self.put_node("ELSE")
-                self.put_code("else:")
+                self.put_code("\t"*(self.tab-1)+"else:")
                 self.next()
                 self.nl()
                 parentScope_else = self.create_scope()
@@ -367,7 +370,7 @@ class Parser:
                 self.curScope.idList.append(self.curToken.value)
             self.put_node(self.curToken.value)
             self.match(TokenType.ID)
-
+        
         else:
             self._panik(f"??? Statement at line {self.lexer.get_line()}:  {self.curToken.value} ({self.curToken.kind.name})")
 
@@ -443,6 +446,7 @@ class Parser:
                 self.curToken.value in self.defaultFunc:
             self.visitedFunc.add(self.curToken.value)
             self.put_node(self.curToken.value)
+            self.put_node('(')
             if self.curToken.value in self.defaultFunc:
                 self.put_code(f'default.{self.curToken.value}(')
                 numParams = self.defaultFunc[self.curToken.value]
@@ -595,10 +599,6 @@ class Parser:
         print(self.curScope.idList)
         sys.exit(f"ABORT ABORT!\n PARSER paniked! {msg}")
 
-    def tabulator(self, text, minTab=15):
-        spaces = minTab - len(text)
-        return text if spaces <=0 else text + " "*spaces 
-
     # Build logger
     def makeLog(self):
         import os
@@ -607,13 +607,6 @@ class Parser:
         self.lexer.makeLog()
         with open('temp/.parser','w+') as f:
             f.write(self.logger)
-        with open('temp/.symbol_table','w+') as f:
-            f.write(f"{self.tabulator('ID')}{self.tabulator('Scope')}{self.tabulator('ScopeId')}\n")
-            for func in self.visitedFunc:
-                f.write(f"{self.tabulator(func)}{self.tabulator('glob')}{self.tabulator(str(0))}\n")
-            for func in self.visitedStatement:
-                f.write(f"{self.tabulator(func)}{self.tabulator('glob')}{self.tabulator(str(0))}\n")
-            for const in self.usedConst:
-                f.write(f"{self.tabulator(const)}{self.tabulator('glob-const')}{self.tabulator(str(0))}\n")
-            f.write(self.curScope.buildTable(0, self.tabulator))
+        
         self.tree.draw()
+        self.curScope.drawTable()

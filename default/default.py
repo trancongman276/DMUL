@@ -23,7 +23,7 @@ def SQRT(x):
 def FACTORIAL(n):
     return 1 if n < 1 else n * FACTORIAL(n-1)
 
-def DEGREE2PI(degree):
+def DEGREE2RAD(degree):
     return degree*(PI/180)
 
 def SIN(x):

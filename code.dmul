@@ -1,77 +1,40 @@
-FUNC myFunc(a, b, c)
-	LET a += 1
-	LET c += a + b
-	EFU c
+# Finding the are of the triangle
+# when knowing the length of 3 lines
+CONST rate = 0.5
 
-PRINT myFunc(1, 3, 4)
+FUNC calcArea(a, b, c)
+	LET p = (a + b + c) * rate 
+	EFU SQRT(p*(p-a)*(p-b)*(p-c)) 
 
-LET a = SIN(14)
-CONST test = POWER(a,5)
-PRINT test
-PRINT "How many fibonacci numbers do you want?"
-INPUT nums
-PRINT "My num is"
-PRINT nums
-LET nums = 8
+FUNC checkTriangle(a, b, c)
+	LET result = 1
+	IF a + b <= c THEN
+		LET result = 0
+	ELSE
+		IF a + c <= b THEN
+			LET result = 0
+		ELSE
+			IF b + c <= a THEN
+				LET result = 0
+			EIF
+		EIF
+	EIF
+	EFU result
 
-LET b = E
-IF nums > 0 THEN
-    PRINT a
-    LET c = a + b
-    LET a = b
-    LET b = c
-    LET nums = nums - 1
-EIF
-
-# 1. Grammar: else
-# 2. Type: func, const, (array), default func
-# 3. Type check
-# 4. To C code
-#SWITCH INCASE
-PRINT "Welcome back to our compile !"
-# INPUT hours
-LET hours = 10
-SWITCH hours
-	INCASE ?==5 SO 
-		PRINT "Good morning" 
-        LET a = a + 3
-		ESO
-	INCASE 11<?<13 SO 
-		PRINT "Good afternoon" 
-		ESO
-	INCASE 14<=?<=17 SO 
-		PRINT "Good evening" 
-		ESO
-	INCASE ?==22 SO 
-		PRINT "Good night" 
-		ESO
-	OTHERCASE SO 
-		PRINT "Goodbye" 
-		ESO
-ESW
-
-#FOR 
 LET a = 0
-FOR START i = 0 WITHIN i<10 EXEC i + 1 
-	LET a = a + 1 	
-EFO
-
-#WHILE
-WHILE a <5 DO 
-	LET ab = 4
-	FOR START i = 0 WITHIN i<10 EXEC i + 1 
-		LET ca = 0
-		LET a = ab + 1 	
-	EFO
-	# Line below will cause scope error
-	# LET a = ca + 1 
-EWH
-
-PRINT a
-# Line below will cause scope error
-# LET a = ab + 5
-PRINT a
-#LOOP - UNTIL (work as opposite DO - WHILE)
-LOOP 
-	LET a = a + 1 
-UNTIL a >= 10
+LET b = 0
+LET c = 0
+LOOP
+	PRINT "Please input line a: "
+	INPUT a
+	PRINT "Please input line b: "
+	INPUT b
+	PRINT "Please input line c: "
+	INPUT c
+	LET check = checkTriangle(a, b, c)
+	IF check == 0 THEN 
+		PRINT "Wrong triangle format"
+	EIF
+UNTIL check == 1
+PRINT "The area of the triangle is:"
+PRINT calcArea(a,b,c)

@@ -7,7 +7,6 @@ import sys
 if len(sys.argv) != 2:
     sys.exit("Required source file")    
 with open(sys.argv[1], 'r') as file:
-# with open('test.dmul', 'r') as file:
     print("DMUL compiler is running...")
     code = file.read()
     writer = Writer('out.py')

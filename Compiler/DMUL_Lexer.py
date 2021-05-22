@@ -141,7 +141,7 @@ class Lexer:
             self._panik(f"Weird token: '{self.curChar}'")
 
         self.next()
-        self.logger += token.kind.name + '\t' + token.value + '\n'
+        self.logger += "{:<20}\t{:<20}\n".format(token.kind.name, token.value) 
         return token
 
     def get_line(self):
